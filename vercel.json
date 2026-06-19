@@ -1,11 +1,7 @@
 {
   "build": {
     "env": {
-      "MIND_API_USERNAME": "77mmFyMvGEr7v42ufWdP",
-      "MIND_API_PASSWORD": "UX5Pr22LnojXtRwXmYR87ysXApMr86EcH4VPqELK",
-      "MIND_ACCOUNT_ID": "5489",
-      "MIND_CHANNEL_ID": "6194",
-      "MIND_BASIC_AUTH_TOKEN": "Basic NzdtbUZ5TXZHRXI3djQydWZXZFA6VVg1UHIyMkxub2pYdFJ3WG1ZUjg3eXNYQXBNcjg2RWNINFZQcUVMSw=="
+      "DATABASE_URL": "@neon_database_url"
     }
   }
 }

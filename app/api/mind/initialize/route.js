@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '@/app/supabase'
+import { query } from '@/lib/db'
 
 export async function POST(request) {
   try {
@@ -18,26 +18,25 @@ export async function POST(request) {
     const reference = `FULIZA-${Date.now()}`
     const checkoutRequestID = `ws_CO_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
 
-    // Save to Supabase - errors won't block the test payment
     try {
-      const { error: dbError } = await supabase.from('payments').insert({
-        reference,
-        amount,
-        currency: 'KES',
-        package_limit: packageLimit,
-        phone,
-        email,
-        name,
-        status: 'completed',
-        payment_method: 'test',
-        paid_at: new Date().toISOString(),
-        raw_response: { checkoutRequestID, merchantRequestID: `MERCH-${Date.now()}` }
-      })
-      if (dbError) {
-        console.error('[Mind Initialize] Database error:', dbError)
-      } else {
-        console.log('[Mind Initialize] Payment saved to database:', reference)
-      }
+      await query(
+        `INSERT INTO payments (reference, amount, currency, package_limit, phone, email, name, status, payment_method, paid_at, raw_response)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          reference,
+          amount,
+          'KES',
+          packageLimit,
+          phone,
+          email,
+          name,
+          'completed',
+          'test',
+          new Date().toISOString(),
+          JSON.stringify({ checkoutRequestID, merchantRequestID: `MERCH-${Date.now()}` })
+        ]
+      )
+      console.log('[Mind Initialize] Payment saved to database:', reference)
     } catch (dbErr) {
       console.error('[Mind Initialize] Database save failed (non-blocking):', dbErr.message)
     }
