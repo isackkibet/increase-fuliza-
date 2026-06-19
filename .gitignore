@@ -39,6 +39,12 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 
+# Secrets
+Download
+aviator
+aviatur
+keys.json
+
 # Large files
 *.tar.gz
 *.zip

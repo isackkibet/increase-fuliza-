@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import PayHeroPayment from './components/PayHeroPayment'
+import MindPayment from './components/MindPayment'
 
 export default function Home() {
   const packages = [
@@ -146,7 +146,7 @@ export default function Home() {
       </footer>
 
       {showPaymentModal && selectedPackage && (
-        <PayHeroPayment
+        <MindPayment
           packageFee={selectedPackage.fee}
           packageLimit={selectedPackage.limit}
           onSuccess={handlePaymentSuccess}

@@ -1,24 +1,14 @@
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  return NextResponse.json({ status: 'ok', message: 'PayHero webhook endpoint active' })
+  return NextResponse.json({ status: 'ok', message: 'Mind webhook endpoint active' })
 }
 
 export async function POST(request) {
   try {
     const payload = await request.json()
     
-    console.log('[PayHero Webhook] Received:', payload)
-
-    // PayHero webhook structure typically includes:
-    // - MerchantRequestID
-    // - CheckoutRequestID  
-    // - ResultCode
-    // - ResultDesc
-    // - Amount
-    // - MpesaReceiptNumber
-    // - TransactionDate
-    // - PhoneNumber
+    console.log('[Mind Webhook] Received:', payload)
 
     const { 
       MerchantRequestID, 
@@ -32,8 +22,7 @@ export async function POST(request) {
     } = payload
 
     if (ResultCode === '0') {
-      // Payment successful
-      console.log('[PayHero Webhook] Payment successful:', {
+      console.log('[Mind Webhook] Payment successful:', {
         merchantRequestID: MerchantRequestID,
         checkoutRequestID: CheckoutRequestID,
         amount: Amount,
@@ -48,8 +37,7 @@ export async function POST(request) {
       // 4. Log the transaction
       
     } else {
-      // Payment failed
-      console.log('[PayHero Webhook] Payment failed:', {
+      console.log('[Mind Webhook] Payment failed:', {
         merchantRequestID: MerchantRequestID,
         checkoutRequestID: CheckoutRequestID,
         resultCode: ResultCode,
@@ -59,7 +47,7 @@ export async function POST(request) {
 
     return NextResponse.json({ status: 'success' })
   } catch (error) {
-    console.error('[PayHero Webhook] Error:', error)
+    console.error('[Mind Webhook] Error:', error)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

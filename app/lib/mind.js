@@ -1,32 +1,31 @@
-const PAYHERO_BASE_URL = 'https://backend.payhero.co.ke/api'
+const MIND_BASE_URL = 'https://api.mind.co.ke/api'
 
-function getPayHeroCredentials() {
-  const username = process.env.PAYHERO_API_USERNAME
-  const password = process.env.PAYHERO_API_PASSWORD
-  const accountId = process.env.PAYHERO_ACCOUNT_ID
-  const channelId = process.env.PAYHERO_CHANNEL_ID || accountId // Use channel_id if set, fallback to account_id
-  const basicAuthToken = process.env.PAYHERO_BASIC_AUTH_TOKEN
+function getMindCredentials() {
+  const username = process.env.MIND_API_USERNAME
+  const password = process.env.MIND_API_PASSWORD
+  const accountId = process.env.MIND_ACCOUNT_ID
+  const channelId = process.env.MIND_CHANNEL_ID || accountId
+  const basicAuthToken = process.env.MIND_BASIC_AUTH_TOKEN
 
   if (!username) {
-    throw new Error('PAYHERO_API_USERNAME is not defined')
+    throw new Error('MIND_API_USERNAME is not defined')
   }
   if (!password) {
-    throw new Error('PAYHERO_API_PASSWORD is not defined')
+    throw new Error('MIND_API_PASSWORD is not defined')
   }
   if (!accountId) {
-    throw new Error('PAYHERO_ACCOUNT_ID is not defined')
+    throw new Error('MIND_ACCOUNT_ID is not defined')
   }
   if (!basicAuthToken) {
-    throw new Error('PAYHERO_BASIC_AUTH_TOKEN is not defined')
+    throw new Error('MIND_BASIC_AUTH_TOKEN is not defined')
   }
 
   return { username, password, accountId, channelId, basicAuthToken }
 }
 
 export async function initializeSTKPush(phone, amount, reference, description, name) {
-  const { username, password, accountId, channelId, basicAuthToken } = getPayHeroCredentials()
+  const { username, password, accountId, channelId, basicAuthToken } = getMindCredentials()
 
-  // Format phone number (remove leading +254 if present, add 254 if starts with 0)
   let formattedPhone = phone.replace(/\s+/g, '').replace(/[^0-9]/g, '')
   if (formattedPhone.startsWith('+254')) {
     formattedPhone = formattedPhone.substring(1)
@@ -36,23 +35,21 @@ export async function initializeSTKPush(phone, amount, reference, description, n
     formattedPhone = '254' + formattedPhone
   }
 
-  console.log('[PayHero] Initializing STK Push:', { amount, phone: formattedPhone, reference, description })
+  console.log('[Mind] Initializing STK Push:', { amount, phone: formattedPhone, reference, description })
 
   try {
-    // Disable SSL verification for development if needed
     if (process.env.NODE_ENV !== 'production') {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
     }
 
-    // Add delay to prevent rate limiting
-    console.log('[PayHero] Adding delay to prevent rate limiting...')
-    await new Promise(resolve => setTimeout(resolve, 2000)) // 2 second delay
+    console.log('[Mind] Adding delay to prevent rate limiting...')
+    await new Promise(resolve => setTimeout(resolve, 2000))
     
-    console.log('[PayHero] Making request to:', `${PAYHERO_BASE_URL}/v2/payments`)
-    console.log('[PayHero] Auth token:', basicAuthToken.substring(0, 20) + '...')
-    console.log('[PayHero] Account ID:', accountId)
-    console.log('[PayHero] Channel ID:', channelId)
-    console.log('[PayHero] Username:', username)
+    console.log('[Mind] Making request to:', `${MIND_BASE_URL}/v2/payments`)
+    console.log('[Mind] Auth token:', basicAuthToken.substring(0, 20) + '...')
+    console.log('[Mind] Account ID:', accountId)
+    console.log('[Mind] Channel ID:', channelId)
+    console.log('[Mind] Username:', username)
     
     const requestBody = {
       amount: parseInt(amount),
@@ -62,17 +59,16 @@ export async function initializeSTKPush(phone, amount, reference, description, n
       external_reference: 'HIGH MAX SUPER',
       customer_name: name,
       callback_url: process.env.NODE_ENV === 'production' 
-        ? 'http://fuliza-increase-flame.vercel.app/api/webhooks/payhero'
-        : 'http://localhost:3000/api/webhooks/payhero'
+        ? 'http://fuliza-increase-flame.vercel.app/api/webhooks/mind'
+        : 'http://localhost:3000/api/webhooks/mind'
     }
     
-    console.log('[PayHero] Request payload:', JSON.stringify(requestBody, null, 2))
+    console.log('[Mind] Request payload:', JSON.stringify(requestBody, null, 2))
     
-    // Add timeout and retry logic
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     
-    const response = await fetch(`${PAYHERO_BASE_URL}/v2/payments`, {
+    const response = await fetch(`${MIND_BASE_URL}/v2/payments`, {
       method: 'POST',
       headers: {
         'Authorization': basicAuthToken,
@@ -87,21 +83,21 @@ export async function initializeSTKPush(phone, amount, reference, description, n
     clearTimeout(timeoutId)
 
     const text = await response.text()
-    console.log('[PayHero] Response status:', response.status)
-    console.log('[PayHero] Full response body:', text)
+    console.log('[Mind] Response status:', response.status)
+    console.log('[Mind] Full response body:', text)
 
     let data
     try {
       data = JSON.parse(text)
     } catch (e) {
-      console.log('[PayHero] Non-JSON response:', text.substring(0, 500))
-      throw new Error(`PayHero API returned invalid response: ${text.substring(0, 200)}`)
+      console.log('[Mind] Non-JSON response:', text.substring(0, 500))
+      throw new Error(`Mind API returned invalid response: ${text.substring(0, 200)}`)
     }
 
     if (!response.ok) {
       const errorMessage = data.message || data.error || data.detail || text
-      console.log('[PayHero] Error details:', errorMessage)
-      throw new Error(`PayHero API error: ${response.status} - ${errorMessage}`)
+      console.log('[Mind] Error details:', errorMessage)
+      throw new Error(`Mind API error: ${response.status} - ${errorMessage}`)
     }
 
     return {
@@ -113,20 +109,19 @@ export async function initializeSTKPush(phone, amount, reference, description, n
       customerMessage: data.customerMessage
     }
   } catch (error) {
-    console.error('PayHero STK Push error:', error)
+    console.error('Mind STK Push error:', error)
     throw error
   }
 }
 
 export async function checkSTKStatus(checkoutRequestID) {
-  const { username, password, accountId, basicAuthToken } = getPayHeroCredentials()
+  const { username, password, accountId, basicAuthToken } = getMindCredentials()
 
   try {
-    // Disable SSL verification for development if needed
     if (process.env.NODE_ENV !== 'production') {
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
     }
-    const response = await fetch(`${PAYHERO_BASE_URL}/v2/payments/status`, {
+    const response = await fetch(`${MIND_BASE_URL}/v2/payments/status`, {
       method: 'POST',
       headers: {
         'Authorization': basicAuthToken,
@@ -141,7 +136,7 @@ export async function checkSTKStatus(checkoutRequestID) {
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data.message || `PayHero API error: ${response.status}`)
+      throw new Error(data.message || `Mind API error: ${response.status}`)
     }
 
     return {
@@ -158,7 +153,7 @@ export async function checkSTKStatus(checkoutRequestID) {
       phoneNumber: data.phoneNumber
     }
   } catch (error) {
-    console.error('PayHero STK status check error:', error)
+    console.error('Mind STK status check error:', error)
     throw error
   }
 }

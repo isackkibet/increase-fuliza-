@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function PayHeroPayment({ packageLimit, packageFee, onSuccess, onError, onClose }) {
+export default function MindPayment({ packageLimit, packageFee, onSuccess, onError, onClose }) {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -44,7 +44,7 @@ export default function PayHeroPayment({ packageLimit, packageFee, onSuccess, on
       else if (formattedPhone.startsWith('+254')) formattedPhone = formattedPhone.substring(1)
       else if (formattedPhone.startsWith('254')) formattedPhone = formattedPhone
 
-      const response = await fetch('/api/payhero/initialize', {
+      const response = await fetch('/api/mind/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
