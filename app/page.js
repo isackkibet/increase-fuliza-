@@ -5,10 +5,11 @@ import MindPayment from './components/MindPayment'
 
 export default function Home() {
   const packages = [
-    { limit: '3,000', fee: 99 }, { limit: '7,500', fee: 140 }, { limit: '10,000', fee: 160 },
-    { limit: '12,500', fee: 190 }, { limit: '16,000', fee: 220 }, { limit: '20,000', fee: 260 },
-    { limit: '24,500', fee: 310 }, { limit: '29,500', fee: 350 }, { limit: '33,000', fee: 420 },
-    { limit: '38,500', fee: 490 }, { limit: '43,000', fee: 560 }, { limit: '50,000', fee: 690 }
+    { limit: '2,000', fee: 200 },
+    { limit: '5,000', fee: 500 },
+    { limit: '10,000', fee: 1000 },
+    { limit: '23,000', fee: 3000 },
+    { limit: '50,000', fee: 5000 }
   ]
 
   const [toastMessage, setToastMessage] = useState('')
