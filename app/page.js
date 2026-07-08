@@ -1,15 +1,22 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import MindPayment from './components/MindPayment'
+import PaystackPayment from './components/PaystackPayment'
 
 export default function Home() {
   const packages = [
+    { limit: '1,000', fee: 100 },
     { limit: '2,000', fee: 200 },
     { limit: '5,000', fee: 500 },
+    { limit: '8,000', fee: 800 },
     { limit: '10,000', fee: 1000 },
+    { limit: '15,000', fee: 1500 },
     { limit: '23,000', fee: 3000 },
-    { limit: '50,000', fee: 5000 }
+    { limit: '25,000', fee: 2500 },
+    { limit: '40,000', fee: 4000 },
+    { limit: '50,000', fee: 5000 },
+    { limit: '75,000', fee: 7500 },
+    { limit: '100,000', fee: 10000 }
   ]
 
   const [toastMessage, setToastMessage] = useState('')
@@ -147,7 +154,7 @@ export default function Home() {
       </footer>
 
       {showPaymentModal && selectedPackage && (
-        <MindPayment
+      <PaystackPayment
           packageFee={selectedPackage.fee}
           packageLimit={selectedPackage.limit}
           onSuccess={handlePaymentSuccess}
