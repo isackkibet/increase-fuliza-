@@ -33,35 +33,20 @@ function getSecretKey() {
 }
 
 /**
- * Initiate a Paystack mobile money (M-PESA) charge via STK push.
- *
- * @param {string} phone   - Phone number in 254XXXXXXXXX format
- * @param {number} amount  - Amount in KES (will be converted to kobo/cents * 100)
- * @param {string} email   - Customer email (or generated placeholder)
- * @param {string} reference - Unique transaction reference
+ * Initialize a Paystack transaction using the official transaction/initialize API.
+ * This opens a standard Paystack checkout flow that works with test cards and real transactions.
  */
-export async function initializePaystackCharge(phone, amount, email, reference) {
+export async function initializePaystackCharge(phone, amount, email, reference, metadata = {}) {
   const secretKey = getSecretKey()
-
-  // Paystack amounts are in the smallest currency unit (kobo/cents).
-  // For KES, 1 KES = 100 kobo, so multiply by 100.
   const amountInKobo = Math.round(amount * 100)
 
-  // Normalize phone — strip spaces
   let formattedPhone = phone.trim().replace(/\s+/g, '').replace(/\D/g, '')
-
-  // Convert any local format to 12-digit international (no + yet)
   if (formattedPhone.startsWith('0') && formattedPhone.length === 10) {
-    // 0759008293 → 254759008293
     formattedPhone = '254' + formattedPhone.substring(1)
   } else if (formattedPhone.length === 9) {
-    // 759008293 → 254759008293
     formattedPhone = '254' + formattedPhone
-  } else if (formattedPhone.startsWith('254') && formattedPhone.length === 12) {
-    // already correct
   }
 
-  // Paystack requires the + prefix: +254XXXXXXXXX
   const phoneWithPlus = '+' + formattedPhone
 
   logPaystackEvent('initialize:start', {
@@ -77,14 +62,19 @@ export async function initializePaystackCharge(phone, amount, email, reference) 
     amount: amountInKobo,
     currency: 'KES',
     reference,
-    mobile_money: {
-      phone: phoneWithPlus,
-      provider: 'mpesa'
+    channels: ['card', 'bank', 'mobile_money'],
+    metadata: {
+      originalPhone: phoneWithPlus,
+      ...metadata
     }
   }
 
+  if (process.env.PAYSTACK_CALLBACK_URL) {
+    payload.callback_url = process.env.PAYSTACK_CALLBACK_URL
+  }
+
   try {
-    const response = await fetch(`${PAYSTACK_BASE_URL}/charge`, {
+    const response = await fetch(`${PAYSTACK_BASE_URL}/transaction/initialize`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${secretKey}`,
@@ -97,7 +87,7 @@ export async function initializePaystackCharge(phone, amount, email, reference) 
     try {
       data = await response.json()
     } catch (parseError) {
-      data = { message: 'Unable to parse Paystack response' }
+      data = { message: 'Unable to parse Paystack initialization response' }
       logPaystackEvent('initialize:parse-error', { reference, error: parseError.message })
     }
 
@@ -119,7 +109,9 @@ export async function initializePaystackCharge(phone, amount, email, reference) 
       message: data.message,
       reference: data.data?.reference || reference,
       displayText: data.data?.display_text || data.message,
-      chargeStatus: data.data?.status // 'pending', 'send_otp', 'send_pin', 'success', etc.
+      accessCode: data.data?.access_code,
+      authorizationUrl: data.data?.authorization_url,
+      chargeStatus: data.data?.status
     }
   } catch (error) {
     logPaystackEvent('initialize:exception', { reference, error: error.message })
@@ -129,8 +121,6 @@ export async function initializePaystackCharge(phone, amount, email, reference) 
 
 /**
  * Verify a Paystack transaction by reference.
- *
- * @param {string} reference - The transaction reference
  */
 export async function verifyPaystackTransaction(reference) {
   const secretKey = getSecretKey()
@@ -168,8 +158,8 @@ export async function verifyPaystackTransaction(reference) {
 
     const tx = data.data
     return {
-      status: tx.status,          // 'success', 'failed', 'pending', etc.
-      amount: tx.amount / 100,    // convert back from kobo
+      status: tx.status,
+      amount: tx.amount / 100,
       currency: tx.currency,
       reference: tx.reference,
       paidAt: tx.paid_at,

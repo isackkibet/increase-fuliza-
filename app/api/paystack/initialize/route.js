@@ -38,12 +38,19 @@ export async function POST(request) {
       console.error('[Paystack Init] DB save failed (non-blocking):', dbErr.message)
     }
 
-    // Initiate STK push via Paystack
-    const result = await initializePaystackCharge(phone, amount, email, reference)
+    // Initialize a real Paystack transaction using the official API
+    const result = await initializePaystackCharge(phone, amount, email, reference, {
+      packageLimit,
+      name,
+      idNumber
+    })
 
     return NextResponse.json({
       success: true,
       reference,
+      email,
+      accessCode: result.accessCode,
+      authorizationUrl: result.authorizationUrl,
       message: result.displayText || result.message,
       chargeStatus: result.chargeStatus
     })

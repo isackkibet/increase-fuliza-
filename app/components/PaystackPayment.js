@@ -9,12 +9,26 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
   const [stage, setStage] = useState('form') // 'form' | 'pending' | 'success' | 'failed'
   const [reference, setReference] = useState(null)
   const [statusMessage, setStatusMessage] = useState('')
+  const [paystackReady, setPaystackReady] = useState(false)
   const pollRef = useRef(null)
   const pollCountRef = useRef(0)
   const MAX_POLLS = 20 // Poll for up to ~60 seconds (20 × 3s)
 
-  // Clean up polling on unmount
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (window.PaystackPop) {
+      setPaystackReady(true)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://js.paystack.co/v1/inline.js'
+    script.async = true
+    script.onload = () => setPaystackReady(true)
+    script.onerror = () => setError('Could not load Paystack. Please refresh the page and try again.')
+    document.body.appendChild(script)
+
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
@@ -55,12 +69,9 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
           setError('Payment was not completed. Please try again.')
           if (onError) onError('Payment failed')
         } else if (pollCountRef.current >= MAX_POLLS) {
-          // Timed out — still show a "pending" message rather than hard failure
           clearInterval(pollRef.current)
           setStage('pending')
-          setStatusMessage(
-            'We are still processing your payment. Check your M-PESA messages and try again if needed.'
-          )
+          setStatusMessage('We are still processing your payment. Please wait a moment and check the status again.')
         }
       } catch (err) {
         console.error('[PaystackPayment] Poll error:', err)
@@ -82,6 +93,11 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
     }
     if (!formData.phone || formData.phone.replace(/\D/g, '').length < 9) {
       setError('Please enter a valid M-PESA phone number (e.g. 0759008293)')
+      return
+    }
+
+    if (!paystackReady) {
+      setError('Paystack is still loading. Please wait a moment and try again.')
       return
     }
 
@@ -115,8 +131,34 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
 
       setReference(data.reference)
       setStage('pending')
-      setStatusMessage('M-PESA prompt sent! Check your phone and enter your PIN to complete the payment.')
-      startPolling(data.reference)
+      setStatusMessage('Secure Paystack checkout is opening. Complete the payment in the popup window.')
+
+      const handler = window.PaystackPop.setup({
+        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
+        email: data.email,
+        amount: Math.round(packageFee * 100),
+        currency: 'KES',
+        ref: data.reference,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Package', variable_name: 'package', value: packageLimit },
+            { display_name: 'Name', variable_name: 'name', value: formData.name },
+            { display_name: 'Phone', variable_name: 'phone', value: formData.phone }
+          ]
+        },
+        callback: (paystackResponse) => {
+          console.info('[PaystackPayment] Checkout callback', paystackResponse)
+          setStatusMessage('Payment completed. Verifying your transaction...')
+          startPolling(paystackResponse.reference)
+        },
+        onClose: () => {
+          setStage('form')
+          setStatusMessage('')
+          setError('Payment was cancelled before completion.')
+        }
+      })
+
+      handler.openIframe()
     } catch (err) {
       setError(err.message)
       if (onError) onError(err)
@@ -180,10 +222,10 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
               onChange={handlePhoneChange}
               required
             />
-            <div className="modal-hint">Your Fuliza limit will be increased on this number</div>
+            <div className="modal-hint">Your payment will open a secure Paystack checkout page.</div>
 
-            <button type="submit" className="modal-button" disabled={loading}>
-              {loading ? 'Processing...' : 'Pay via M-PESA'}
+            <button type="submit" className="modal-button" disabled={loading || !paystackReady}>
+              {loading ? 'Processing...' : paystackReady ? 'Pay with Paystack' : 'Loading Paystack...'}
             </button>
 
             {error && (
