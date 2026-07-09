@@ -9,26 +9,11 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
   const [stage, setStage] = useState('form') // 'form' | 'pending' | 'success' | 'failed'
   const [reference, setReference] = useState(null)
   const [statusMessage, setStatusMessage] = useState('')
-  const [paystackReady, setPaystackReady] = useState(false)
   const pollRef = useRef(null)
   const pollCountRef = useRef(0)
   const MAX_POLLS = 20 // Poll for up to ~60 seconds (20 × 3s)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    if (window.PaystackPop) {
-      setPaystackReady(true)
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://js.paystack.co/v1/inline.js'
-    script.async = true
-    script.onload = () => setPaystackReady(true)
-    script.onerror = () => setError('Could not load Paystack. Please refresh the page and try again.')
-    document.body.appendChild(script)
-
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
     }
@@ -96,11 +81,6 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
       return
     }
 
-    if (!paystackReady) {
-      setError('Paystack is still loading. Please wait a moment and try again.')
-      return
-    }
-
     setLoading(true)
 
     try {
@@ -131,34 +111,14 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
 
       setReference(data.reference)
       setStage('pending')
-      setStatusMessage('Secure Paystack checkout is opening. Complete the payment in the popup window.')
+      setStatusMessage('Redirecting you to Paystack to complete your payment securely.')
 
-      const handler = window.PaystackPop.setup({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || '',
-        email: data.email,
-        amount: Math.round(packageFee * 100),
-        currency: 'KES',
-        ref: data.reference,
-        metadata: {
-          custom_fields: [
-            { display_name: 'Package', variable_name: 'package', value: packageLimit },
-            { display_name: 'Name', variable_name: 'name', value: formData.name },
-            { display_name: 'Phone', variable_name: 'phone', value: formData.phone }
-          ]
-        },
-        callback: (paystackResponse) => {
-          console.info('[PaystackPayment] Checkout callback', paystackResponse)
-          setStatusMessage('Payment completed. Verifying your transaction...')
-          startPolling(paystackResponse.reference)
-        },
-        onClose: () => {
-          setStage('form')
-          setStatusMessage('')
-          setError('Payment was cancelled before completion.')
-        }
-      })
+      if (data.authorizationUrl) {
+        window.location.href = data.authorizationUrl
+        return
+      }
 
-      handler.openIframe()
+      throw new Error('Paystack did not return a redirect URL.')
     } catch (err) {
       setError(err.message)
       if (onError) onError(err)
@@ -224,8 +184,8 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
             />
             <div className="modal-hint">Your payment will open a secure Paystack checkout page.</div>
 
-            <button type="submit" className="modal-button" disabled={loading || !paystackReady}>
-              {loading ? 'Processing...' : paystackReady ? 'Pay with Paystack' : 'Loading Paystack...'}
+            <button type="submit" className="modal-button" disabled={loading}>
+              {loading ? 'Processing...' : 'Pay with Paystack'}
             </button>
 
             {error && (
