@@ -1,35 +1,47 @@
 const PAYSTACK_BASE_URL = process.env.PAYSTACK_API_BASE_URL || 'https://api.paystack.co'
 
-function isPaystackTestMode() {
-  const flag = process.env.PAYSTACK_TEST_MODE
-  const key = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_TEST_SECRET_KEY || '').toLowerCase()
+function getPaystackMode() {
+  const mode = (process.env.PAYSTACK_MODE || '').trim().toLowerCase()
+  if (mode === 'sandbox' || mode === 'test' || mode === 'development') return 'sandbox'
+  if (mode === 'live' || mode === 'production') return 'live'
 
-  return (
-    flag === 'true' ||
-    flag === '1' ||
-    flag === 'yes' ||
-    key.startsWith('sk_test_') ||
-    key.startsWith('pk_test_')
-  )
+  const key = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SANDBOX_SECRET_KEY || process.env.PAYSTACK_LIVE_SECRET_KEY || '').toLowerCase()
+  return key.startsWith('sk_test_') || key.startsWith('pk_test_') ? 'sandbox' : 'live'
+}
+
+function isPaystackTestMode() {
+  return getPaystackMode() === 'sandbox'
 }
 
 function logPaystackEvent(event, details = {}) {
   console.info(`[Paystack][${event}]`, {
     timestamp: new Date().toISOString(),
+    mode: getPaystackMode(),
     testMode: isPaystackTestMode(),
     ...details
   })
 }
 
 function getSecretKey() {
-  const key = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_TEST_SECRET_KEY
+  const mode = getPaystackMode()
+  const key = mode === 'sandbox'
+    ? process.env.PAYSTACK_SANDBOX_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_TEST_SECRET_KEY
+    : process.env.PAYSTACK_LIVE_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY
+
   if (!key) {
-    const error = new Error('PAYSTACK_SECRET_KEY is not defined. Set it before trying Paystack charges.')
-    logPaystackEvent('config-missing', { error: error.message })
+    const error = new Error('Paystack secret key is not defined for the selected mode.')
+    logPaystackEvent('config-missing', { error: error.message, mode })
     throw error
   }
 
   return key
+}
+
+export function getPaystackPublicKey() {
+  const mode = getPaystackMode()
+  return mode === 'sandbox'
+    ? process.env.NEXT_PUBLIC_PAYSTACK_SANDBOX_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+    : process.env.NEXT_PUBLIC_PAYSTACK_LIVE_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
 }
 
 /**
