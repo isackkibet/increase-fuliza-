@@ -1,11 +1,35 @@
+import fs from 'fs'
+import path from 'path'
+
 const PAYSTACK_BASE_URL = process.env.PAYSTACK_API_BASE_URL || 'https://api.paystack.co'
 
+function readEnvFileValue(key) {
+  try {
+    const envPath = path.resolve(process.cwd(), '.env.local')
+    if (!fs.existsSync(envPath)) return undefined
+
+    const contents = fs.readFileSync(envPath, 'utf8')
+    const match = contents.split(/\r?\n/).find((line) => line.trim().startsWith(`${key}=`))
+    if (!match) return undefined
+
+    const value = match.split('=').slice(1).join('=').trim()
+    return value.replace(/^['"]|['"]$/g, '')
+  } catch (error) {
+    console.warn('[Paystack] Could not read .env.local', error.message)
+    return undefined
+  }
+}
+
+function getEnvValue(key) {
+  return process.env[key] || readEnvFileValue(key)
+}
+
 function getPaystackMode() {
-  const mode = (process.env.PAYSTACK_MODE || '').trim().toLowerCase()
+  const mode = (getEnvValue('PAYSTACK_MODE') || '').trim().toLowerCase()
   if (mode === 'sandbox' || mode === 'test' || mode === 'development') return 'sandbox'
   if (mode === 'live' || mode === 'production') return 'live'
 
-  const key = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SANDBOX_SECRET_KEY || process.env.PAYSTACK_LIVE_SECRET_KEY || '').toLowerCase()
+  const key = (getEnvValue('PAYSTACK_SECRET_KEY') || getEnvValue('PAYSTACK_SANDBOX_SECRET_KEY') || getEnvValue('PAYSTACK_LIVE_SECRET_KEY') || '').toLowerCase()
   return key.startsWith('sk_test_') || key.startsWith('pk_test_') ? 'sandbox' : 'live'
 }
 
@@ -25,8 +49,8 @@ function logPaystackEvent(event, details = {}) {
 function getSecretKey() {
   const mode = getPaystackMode()
   const key = mode === 'sandbox'
-    ? process.env.PAYSTACK_SANDBOX_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_TEST_SECRET_KEY
-    : process.env.PAYSTACK_LIVE_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY
+    ? getEnvValue('PAYSTACK_SANDBOX_SECRET_KEY') || getEnvValue('PAYSTACK_SECRET_KEY') || getEnvValue('PAYSTACK_TEST_SECRET_KEY')
+    : getEnvValue('PAYSTACK_LIVE_SECRET_KEY') || getEnvValue('PAYSTACK_SECRET_KEY')
 
   if (!key) {
     const error = new Error('Paystack secret key is not defined for the selected mode.')
@@ -40,8 +64,8 @@ function getSecretKey() {
 export function getPaystackPublicKey() {
   const mode = getPaystackMode()
   return mode === 'sandbox'
-    ? process.env.NEXT_PUBLIC_PAYSTACK_SANDBOX_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
-    : process.env.NEXT_PUBLIC_PAYSTACK_LIVE_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+    ? getEnvValue('NEXT_PUBLIC_PAYSTACK_SANDBOX_PUBLIC_KEY') || getEnvValue('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY')
+    : getEnvValue('NEXT_PUBLIC_PAYSTACK_LIVE_PUBLIC_KEY') || getEnvValue('NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY')
 }
 
 /**

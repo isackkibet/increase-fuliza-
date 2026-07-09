@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { getPaystackPublicKey } from '@/app/lib/paystack'
 
 export default function PaystackPayment({ packageLimit, packageFee, onSuccess, onError, onClose }) {
   const [formData, setFormData] = useState({ name: '', idNumber: '', phone: '' })
