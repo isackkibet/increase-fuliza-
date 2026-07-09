@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
-import { verifyPaystackTransaction } from '@/app/lib/paystack'
+import { verifyPaystackTransaction, isPaystackTestMode } from '@/app/lib/paystack'
 import { query } from '@/lib/db'
 
 export async function POST(request) {
   try {
     const body = await request.json()
     const { reference } = body
+
+    console.info('[Paystack Verify] Request received', { reference, testMode: isPaystackTestMode() })
 
     if (!reference) {
       return NextResponse.json({ error: 'Missing reference' }, { status: 400 })
@@ -27,7 +29,7 @@ export async function POST(request) {
             reference
           ]
         )
-        console.log('[Paystack Verify] Payment marked completed:', reference)
+        console.info('[Paystack Verify] Payment marked completed', { reference, testMode: isPaystackTestMode() })
       } catch (dbErr) {
         console.error('[Paystack Verify] DB update failed (non-blocking):', dbErr.message)
       }

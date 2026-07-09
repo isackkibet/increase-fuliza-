@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server'
-import { initializePaystackCharge, generatePaystackReference } from '@/app/lib/paystack'
+import { initializePaystackCharge, generatePaystackReference, isPaystackTestMode } from '@/app/lib/paystack'
 import { query } from '@/lib/db'
 
 export async function POST(request) {
   try {
     const body = await request.json()
     const { amount, phone, name, idNumber, packageLimit } = body
+
+    console.info('[Paystack Init] Request received', {
+      testMode: isPaystackTestMode(),
+      amount,
+      packageLimit,
+      phone: phone ? phone.replace(/\D/g, '').slice(-4) : null,
+      name,
+      idNumber: idNumber ? `${idNumber.slice(0, 2)}***` : null
+    })
 
     if (!amount || !phone || !name || !packageLimit) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -24,7 +33,7 @@ export async function POST(request) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [reference, amount, 'KES', packageLimit, phone, idNumber || email, name, 'pending', 'paystack']
       )
-      console.log('[Paystack Init] Payment record created:', reference)
+      console.info('[Paystack Init] Payment record created', { reference, testMode: isPaystackTestMode() })
     } catch (dbErr) {
       console.error('[Paystack Init] DB save failed (non-blocking):', dbErr.message)
     }

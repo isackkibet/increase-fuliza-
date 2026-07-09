@@ -35,12 +35,14 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
       pollCountRef.current += 1
 
       try {
+        console.info('[PaystackPayment] Polling verification', { reference: ref, poll: pollCountRef.current })
         const res = await fetch('/api/paystack/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reference: ref })
         })
         const data = await res.json()
+        console.info('[PaystackPayment] Verification response', { reference: ref, status: data.status, response: data })
 
         if (data.status === 'success') {
           clearInterval(pollRef.current)
@@ -86,6 +88,12 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
     setLoading(true)
 
     try {
+      console.info('[PaystackPayment] Sending initialize request', {
+        amount: packageFee,
+        packageLimit,
+        phone: formData.phone,
+        name: formData.name
+      })
       const response = await fetch('/api/paystack/initialize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +107,7 @@ export default function PaystackPayment({ packageLimit, packageFee, onSuccess, o
       })
 
       const data = await response.json()
+      console.info('[PaystackPayment] Initialize response', { status: response.status, data })
 
       if (!response.ok || data.error) {
         throw new Error(data.error || 'Failed to initiate payment')
